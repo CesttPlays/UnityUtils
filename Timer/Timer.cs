@@ -1,0 +1,89 @@
+﻿
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Timer {
+
+
+    private static List<Timer> activeTimerList;
+    private static GameObject initGameObject;
+
+    private static void InitIfNeeded() {
+        if (initGameObject == null) {
+            initGameObject = new GameObject("FunctionTimer_InitGameObject");
+            activeTimerList = new List<Timer>();
+        }
+    }
+
+    public static Timer Create(Action action, float timer, string timerName = null) {
+        InitIfNeeded();
+        GameObject gameObject = new GameObject("FunctionTimer", typeof(MonoBehaviourHook));
+
+        Timer functionTimer = new Timer(action, timer, timerName, gameObject);
+
+        gameObject.GetComponent<MonoBehaviourHook>().onUpdate = functionTimer.Update;
+
+        activeTimerList.Add(functionTimer);
+
+        return functionTimer;
+    }
+
+    private static void RemoveTimer(Timer functionTimer) {
+        InitIfNeeded();
+        activeTimerList.Remove(functionTimer);
+    }
+
+    public static void Stop(string timerName) {
+        for (int i = 0; i < activeTimerList.Count; i++) {
+            if (activeTimerList[i].timerName == timerName) {
+                // Stop this timer
+                activeTimerList[i].DestroySelf();
+                i--;
+            }
+        }
+    }
+
+
+
+    // Dummy class to have access to MonoBehaviour functions
+    private class MonoBehaviourHook : MonoBehaviour {
+        public Action onUpdate;
+        private void Update() {
+            if (onUpdate != null) onUpdate();
+        }
+    }
+
+    private Action action;
+    private float timer;
+    private string timerName;
+    private GameObject gameObject;
+    private bool isDestroyed;
+
+    private Timer(Action action, float timer, string timerName, GameObject gameObject) {
+        this.action = action;
+        this.timer = timer;
+        this.timerName = timerName;
+        this.gameObject = gameObject;
+        isDestroyed = false;
+    }
+
+    public void Update() {
+        if (!isDestroyed) {
+            timer -= Time.deltaTime;
+            if (timer < 0) {
+                // Trigger the action
+                action();
+                DestroySelf();
+            }
+        }
+    }
+
+    private void DestroySelf() {
+        isDestroyed = true;
+        UnityEngine.Object.Destroy(gameObject);
+        RemoveTimer(this);
+    }
+
+}
